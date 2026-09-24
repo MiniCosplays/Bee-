@@ -28,6 +28,38 @@ jobs:
         run: |
           unzip -q "bee_totem_26_3_shoulder_ready (1).zip"
 
+      - name: Fix Minecraft 26.3 build configuration
+        working-directory: "bee_totem_26_3_shoulder_ready"
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("build.gradle")
+          text = path.read_text()
+
+          text = text.replace(
+              "id 'fabric-loom' version '1.17.21'",
+              "id 'net.fabricmc.fabric-loom' version '1.17.21'"
+          )
+
+          text = text.replace(
+              "    mappings loom.officialMojangMappings()\n",
+              ""
+          )
+
+          text = text.replace(
+              '    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"',
+              '    implementation "net.fabricmc:fabric-loader:${project.loader_version}"'
+          )
+
+          text = text.replace(
+              '    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"',
+              '    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"'
+          )
+
+          path.write_text(text)
+          PY
+
       - name: Build mod
         working-directory: "bee_totem_26_3_shoulder_ready"
         run: gradle build --no-daemon
