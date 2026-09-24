@@ -1,0 +1,40 @@
+name: Build Bee Totem
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download project ZIP
+        uses: actions/checkout@v7
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up Gradle 9.6.0
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Extract project
+        run: |
+          unzip -q bee_totem_26_3_shoulder_ready.zip
+          cd bee_totem_26_3_shoulder_ready
+          rm -rf .gradle build
+
+      - name: Build mod
+        working-directory: bee_totem_26_3_shoulder_ready
+        run: gradle build --no-daemon
+
+      - name: Upload JAR
+        uses: actions/upload-artifact@v6
+        with:
+          name: bee-totem-jar
+          path: bee_totem_26_3_shoulder_ready/build/libs/*.jar
