@@ -28,41 +28,88 @@ jobs:
         run: |
           unzip -q "bee_totem_26_3_shoulder_ready (1).zip"
 
-      - name: Fix Minecraft 26.3 build configuration
+      - name: Fix Minecraft 26.3 Gradle configuration
         working-directory: "bee_totem_26_3_shoulder_ready"
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
+          cat > settings.gradle <<'EOF'
+          import org.gradle.api.initialization.resolve.RepositoriesMode
 
-          path = Path("build.gradle")
-          text = path.read_text()
+          pluginManagement {
+              repositories {
+                  maven { url = uri("https://maven.fabricmc.net/") }
+                  gradlePluginPortal()
+                  mavenCentral()
+              }
+          }
 
-          text = text.replace(
-              "id 'fabric-loom' version '1.17.21'",
-              "id 'net.fabricmc.fabric-loom' version '1.17.21'"
-          )
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
 
-          text = text.replace(
-              "    mappings loom.officialMojangMappings()\n",
-              ""
-          )
+              repositories {
+                  maven { url = uri("https://maven.fabricmc.net/") }
+                  mavenCentral()
+              }
+          }
 
-          text = text.replace(
-              '    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"',
-              '    implementation "net.fabricmc:fabric-loader:${project.loader_version}"'
-          )
+          rootProject.name = 'bee_totem_26_3_thirdperson'
+          EOF
 
-          text = text.replace(
-              '    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"',
-              '    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"'
-          )
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'net.fabricmc.fabric-loom' version '1.17.21'
+              id 'maven-publish'
+          }
 
-          path.write_text(text)
-          PY
+          version = project.mod_version
+          group = project.maven_group
+
+          base {
+              archivesName = project.archives_base_name
+          }
+
+          dependencies {
+              minecraft "com.mojang:minecraft:${project.minecraft_version}"
+              mappings loom.officialMojangMappings()
+
+              modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+              modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+          }
+
+          processResources {
+              inputs.property 'version', project.version
+
+              filesMatching('fabric.mod.json') {
+                  expand version: project.version
+              }
+          }
+
+          java {
+              toolchain {
+                  languageVersion = JavaLanguageVersion.of(25)
+              }
+
+              withSourcesJar()
+          }
+
+          tasks.withType(JavaCompile).configureEach {
+              options.release = 25
+          }
+
+          tasks.jar {
+              from('LICENSE') {
+                  rename { "${it}_${project.archives_base_name}" }
+              }
+          }
+          EOF
 
       - name: Build mod
         working-directory: "bee_totem_26_3_shoulder_ready"
-        run: gradle build --no-daemon
+        run: |
+          gradle clean build \
+            --refresh-dependencies \
+            --no-daemon \
+            --stacktrace \
+            --info
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
